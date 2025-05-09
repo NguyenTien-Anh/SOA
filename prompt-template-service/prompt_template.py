@@ -1,0 +1,16 @@
+PROMPT_TEMPLATE_TOPIC = (
+    "Dưới đây là một chủ đề về môn học."
+    "\n -----------------------------\n"
+    "{context_str}"
+    "\n -----------------------------\n"
+    "Bạn là một chuyên gia tạo câu hỏi trắc nghiệm, từ một chủ đề mà bạn tự chọn ra, "
+    "hãy tìm ra các nội dung có thể sử dụng để tạo câu hỏi trắc nghiệm."
+    "Nếu không thể chọn đủ số lượng yêu cầu, hãy cố gắng chọn ra nhiều nhất có thể."
+    "Các nội dung được chọn phải có liên quan đến chủ đề đã chọn, được viết khái quát và ngắn gọn."
+    "Câu trả lời bạn đưa ra chỉ là một định dạng json duy nhất có nội dung "
+    "{\"topics\": [nội dung 1, nội dung 2, nội dung 3, ...]} mà không cần dòng chữ nào khác. "
+    "Ví dụ cho câu trả lời chính xác: \"{\"topics\": [\"Khái niệm cơ sở dữ liệu\", \"Các hệ cơ sở dữ liệu\"]}\". "
+    "Ví dụ cho câu trả lời không chính xác: "
+    "\"Đây là câu trả lời ```json {\"topics\": [\"Khái niệm cơ sở dữ liệu\", \"Các hệ cơ sở dữ liệu\"]}```\". "
+    "{query_str}"
+)
