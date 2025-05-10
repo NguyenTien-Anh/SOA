@@ -1,15 +1,16 @@
+import json
+
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, UploadFile, Form, Query
-import requests
+from fastapi import FastAPI, File, UploadFile, Form
 import aiofiles
 import os
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-
 from typing import Optional
 from question_type import QuestionType
 from difficulty_level import DifficultyLevel
+from api_client import parse_doc, create_vector_store, create_query_engine_tool, create_mcq
 
 load_dotenv()
 
@@ -26,7 +27,8 @@ async def mcqGen(
     difficulty: DifficultyLevel = Form(...),
     file: UploadFile = File(...),
     type: QuestionType = Form(...),
-    number_of_answers: int = Form(...)
+    number_of_answers: int = Form(...),
+    recheck: bool = Form(...)
 ):
     # Save the uploaded file temporarily
     os.makedirs("/tmp", exist_ok=True)
@@ -39,43 +41,30 @@ async def mcqGen(
     try:
         files = {'file': (file.filename, open(temp_file_path, 'rb'), file.content_type)}
 
-        response = await run_in_executor(
-            requests.post, 
-            'http://127.0.0.1:8002/parse-doc', 
-            files=files,
-            timeout=10.0
+        # Parse document
+        parse_result = await parse_doc(_executor, files)
+
+        # files['file'][1].close()
+        # os.remove(temp_file_path)
+        
+        # Create vector store from the parsed document
+        store_id = await create_vector_store(
+            _executor, 
+            file.filename, 
+            parse_result["parse_result"]
+        )
+        
+        # Create query engine tool for the vector store
+        query_engine_result = await create_query_engine_tool(
+            _executor,
+            store_id,
+            type.value,
+            number_of_answers
         )
 
-        files['file'][1].close()
-        os.remove(temp_file_path)
-        parse_result = response.json()
-        
-        # Call the vector-store-service to create a vector store from the parsed document
-        try:
-            vector_store_response = await run_in_executor(
-                requests.post,
-                'http://127.0.0.1:8003/create-vector-store',
-                params={"store_id": file.filename, "content": parse_result["parse_result"]},
-                timeout=10.0
-            )
-            vector_store_result = vector_store_response.json()
-        except Exception as e:
-            print(f"Warning: Failed to create vector store: {str(e)}")
-            vector_store_result = {"error": f"Failed to create vector store: {str(e)}"}
-        
-        return {
-            "topic": topic,
-            "quantity": quantity,
-            "difficulty": difficulty,
-            "type": type,
-            "number_of_answers": number_of_answers,
-            "parsed_document": parse_result["parse_result"],
-            "vector_store_result": vector_store_result
-        }
-    except requests.Timeout:
-        return {"error": "Connection to parse-doc service timed out. Make sure the service is running at http://127.0.0.1:8002"}
-    except requests.ConnectionError:
-        return {"error": "Failed to connect to parse-doc service. Make sure the service is running at http://127.0.0.1:8002"}
+        mcq_result = await create_mcq(_executor, store_id, topic, quantity, difficulty, number_of_answers, recheck, type)
+        mcq_result = [json.loads(item["response"]) for item in mcq_result]
+        return mcq_result
     except Exception as e:
         try:
             files['file'][1].close()
