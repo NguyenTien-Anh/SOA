@@ -30,7 +30,7 @@ async def create_vector_store(executor, store_id: str, content: str) -> Dict[str
             executor,
             requests.post,
             'http://127.0.0.1:8003/create-vector-store',
-            params={"store_id": store_id, "content": content},
+            json={"store_id": store_id, "content": content},
             timeout=1000.0
         )
         return vector_store_response.json()
